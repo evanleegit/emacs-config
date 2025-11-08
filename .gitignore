@@ -1,0 +1,18 @@
+# --- Emacs auto-generated files ---
+auto-save-list/
+elpa/
+eshell/
+transient/
+tutorial/
+url/
+recentf
+tramp
+bookmarks/
+bookmarks/
+network-security.data
+
+# --- Byte-compiled files ---
+*.elc
+
+# --- System-specific ---
+*~
