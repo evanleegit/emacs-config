@@ -1,0 +1,354 @@
+;;; init.el --- Cleaned-up Emacs config for macOS -*- lexical-binding: t; -*-
+
+;; -----------------------------
+;; General Settings
+;; -----------------------------
+(setq inhibit-startup-message t) ;; Disable startup screen
+
+(add-to-list 'default-frame-alist '(ns-transparent-titlebar . t))
+(add-to-list 'default-frame-alist '(ns-appearance . dark))
+(setq frame-title-format nil)
+(setq ns-use-proxy-icon nil)
+
+;; UI tweaks
+(tool-bar-mode -1)
+(scroll-bar-mode -1)
+(menu-bar-mode -1)
+(tooltip-mode -1)
+(blink-cursor-mode -1)
+
+;; Autocompletion in M-x buffer
+(fido-vertical-mode)
+
+;; -----------------------------
+;; Package Management
+;; -----------------------------
+(require 'package)
+(setq package-archives
+      '(("gnu" . "https://elpa.gnu.org/packages/")
+        ("melpa" . "https://melpa.org/packages/")))
+(package-initialize)
+
+(unless (package-installed-p 'use-package)
+  (package-refresh-contents)
+  (package-install 'use-package))
+
+(eval-when-compile
+  (require 'use-package))
+
+(setq use-package-always-ensure t)
+
+;; -----------------------------
+;; Appearance
+;; -----------------------------
+(use-package kaolin-themes
+  :config
+  (load-theme 'kaolin-galaxy t))
+
+(set-fringe-mode 0)
+;; Line numbers
+(setq display-line-numbers-type 'relative)
+(global-display-line-numbers-mode +1)
+(dolist (mode '(org-mode-hook
+                term-mode-hook
+                eshell-mode-hook
+                shell-mode-hook
+                vterm-mode-hook))
+  (add-hook mode (lambda () (display-line-numbers-mode -1))))
+
+(use-package doom-modeline
+  :init (doom-modeline-mode 1)
+  :custom
+  (doom-modeline-height 25)
+  (doom-modeline-bar-width 3))
+
+(use-package nerd-icons
+  :ensure t)
+
+;; -----------------------------
+;; Fonts
+;; -----------------------------
+(set-face-attribute 'default nil :font "JetBrains Mono-14")
+(set-face-attribute 'fixed-pitch nil :font "JetBrains Mono" :height 140)
+(set-face-attribute 'variable-pitch nil :font "JetBrains Mono" :height 150)
+
+(use-package ligature
+  :config
+  (ligature-set-ligatures 'prog-mode '("--" "---" "==" "===" "!=" "!==" "=!="
+                                        "=:=" "=/=" "<=" ">=" "&&" "&&&" "&=" "++" "+++" "***" ";;" "!!"
+                                        "??" "???" "?:" "?." "?=" "<:" ":<" ":>" ">:" "<:<" "<>" "<<<" ">>>"
+                                        "<<" ">>" "||" "-|" "_|_" "|-" "||-" "|=" "||=" "##" "###" "####"
+                                        "#{" "#[" "]#" "#(" "#?" "#_" "#_(" "#:" "#!" "#=" "^=" "<$>" "<$"
+                                        "$>" "<+>" "<+" "+>" "<*>" "<*" "*>" "</" "</>" "/>" "<!--" "<#--"
+                                        "-->" "->" "->>" "<<-" "<-" "<=<" "=<<" "<<=" "<==" "<=>" "<==>"
+                                        "==>" "=>" "=>>" ">=>" ">>=" ">>-" ">-" ">--" "-<" "-<<" ">->" "<-<"
+                                        "<-|" "<=|" "|=>" "|->" "<->" "<~~" "<~" "<~>" "~~" "~~>" "~>"
+                                        "~-" "-~" "~@" "[||]" "|]" "[|" "|}" "{|" "[<" ">]" "|>" "<|"
+                                        "||>" "<||" "|||>" "<|||" "<|>" "..." ".." ".=" ".-" "..<" ".?"
+                                        "::" ":::" ":=" "::=" ":?" ":?>" "//" "///" "/*" "*/" "/=" "//="
+                                        "/==" "@_" "__"))
+  (global-ligature-mode t))
+
+;; -----------------------------
+;; EVIL Mode
+;; -----------------------------
+(use-package evil
+  :init
+  (setq evil-want-keybinding nil)
+  :config
+  (evil-mode 1)
+  ;; Org Capture keybindings inside Evil
+  (define-key evil-normal-state-map (kbd "C-c c") #'org-capture)
+  (define-key evil-insert-state-map (kbd "C-c c") #'org-capture))
+
+(use-package evil-collection
+  :after evil
+  :config
+  (evil-collection-init))
+
+;; -----------------------------
+;; LSP & Completion
+;; -----------------------------
+;eglot lsp
+(use-package eglot
+  :hook ((python-mode . eglot-ensure)
+         (c-mode . eglot-ensure)
+         (c++-mode . eglot-ensure)
+         (go-mode . eglot-ensure)
+         (js-mode . eglot-ensure))
+  :config
+  (setq eglot-autoshutdown t)
+  (setq eglot-events-buffer-size 0))
+
+(use-package corfu
+  :init
+  (global-corfu-mode)
+  :custom
+  (corfu-auto t)                ;; enable auto completion
+  (corfu-auto-delay 0.2)
+  (corfu-auto-prefix 1)
+  (corfu-cycle t)
+  (corfu-preview-current nil)   ;; no inline preview
+  (corfu-quit-no-match 'separator))
+
+(use-package cape
+  :init
+  ;; Add useful defaults for completion-at-point-functions
+  (add-to-list 'completion-at-point-functions #'cape-file)
+  (add-to-list 'completion-at-point-functions #'cape-dabbrev)
+  (add-to-list 'completion-at-point-functions #'cape-keyword))
+
+
+;; -----------------------------
+;; Org Mode
+;; -----------------------------
+(use-package org
+  :pin gnu
+  :mode ("\\.org\\'" . org-mode)
+  :init
+  ;; Loaded dependencies
+  (use-package olivetti
+    :ensure t
+    :custom
+    (olivetti-body-width 100))
+
+  (use-package org-appear
+    :ensure t)
+
+  (use-package cdlatex
+    :ensure t
+    :hook (org-mode . org-cdlatex-mode))
+
+  (use-package org-bullets
+    :ensure t
+    :hook (org-mode . org-bullets-mode))
+
+  (setq org-startup-with-latex-preview t)
+
+  (defun evan/org-latex-live-preview ()
+    "Automatically preview LaTeX fragments as you type."
+    (setq-local org-highlight-latex-and-related '(latex))
+    ;; Use after-change-functions to auto-refresh previews
+    (defun evan/org-latex-refresh (_beg _end _len)
+      (org-preview-latex-fragment))
+    (add-hook 'after-change-functions #'evan/org-latex-refresh nil t))
+
+  (add-hook 'org-mode-hook #'evan/org-latex-live-preview)
+
+  (defun evan/org-mode-setup ()
+    "Custom setup for Org buffers."
+    (visual-line-mode 1)
+    (variable-pitch-mode 1)
+    (olivetti-mode 1)
+    (org-appear-mode 1)
+    (org-indent-mode 1)
+    (org-cdlatex-mode 1)
+    (electric-indent-mode -1)
+
+    (dolist (face '(org-block
+                    org-code
+                    org-table
+                    org-formula
+                    org-checkbox
+                    org-special-keyword
+                    org-meta-line
+                    org-document-info-keyword))
+      (set-face-attribute face nil :inherit 'fixed-pitch)))
+  
+  :hook (org-mode . evan/org-mode-setup)
+  :config
+  ;; Org directories and agenda
+  (setq org-directory (expand-file-name "org" (getenv "HOME"))
+        org-agenda-files (list org-directory)
+        org-archive-location (concat (expand-file-name "archives.org" org-directory)
+                                     "::datetree/* Archived Tasks"))
+ 
+  ;; Visual indentation
+  (setq org-startup-indented t)
+  (setq org-indent-indentation-per-level 2)
+ 
+  ;; Inline images
+  (setq org-startup-with-inline-images t
+        org-image-actual-width '(300))
+
+  ;; Capture templates
+  (setq org-capture-templates
+        '(("t" "TODO" entry (file+headline "~/org/inbox.org" "Refile")
+           "* TODO [#B] %?\n:Created: %T\n")
+          ("s" "Schedule" entry (file+headline "~/org/inbox.org" "Refile")
+           "* TODO [#B] %?\nSCHEDULED: %^t\n")
+          ("d" "Deadline" entry (file+headline "~/org/inbox.org" "Refile")
+           "* TODO [#B] %?\nDEADLINE: %^t\n")
+          ("n" "Note" entry (file+headline "~/org/notes.org" "Random Notes")
+           "** %?")))
+
+  ;; Org keybindings
+  (global-set-key (kbd "C-c a") #'org-agenda)
+  (global-set-key (kbd "C-c l") #'org-store-link)
+  (global-set-key (kbd "C-c b") #'org-switchb)
+  (global-set-key (kbd "C-c C") #'org-capture-goto-last-stored)
+
+  ;; TODO keywords
+  (setq org-todo-keywords
+        '((sequence "TODO(t!)" "PROG(p!)" "WAIT(w!)" "HOLD(h!)" "|" "DONE(d!)" "KILL(k!)")))
+
+  ;; Priority faces
+  (setq org-priority-highest ?A
+        org-priority-lowest ?D
+        org-priority-default ?B
+        org-priority-faces
+        '((?A . (:foreground "#bf616a" :weight bold :underline t))
+          (?B . (:foreground "#d08770" :weight bold :underline t))
+          (?C . (:foreground "#4c566a" :weight bold :underline t))
+          (?D . (:foreground "#3b4252" :weight bold :underline t))))
+
+  ;; Refile
+  (setq org-refile-targets '((org-agenda-files :maxlevel . 1)))
+
+  ;; Headings and title scaling
+  (custom-theme-set-faces
+   'user
+   `(org-level-1 ((t (:inherit variable-pitch :weight bold :height 1.15))))
+   `(org-level-2 ((t (:inherit variable-pitch :weight bold :height 1.1))))
+   `(org-level-3 ((t (:inherit variable-pitch :weight bold :height 1.05))))
+   `(org-level-4 ((t (:inherit variable-pitch :weight bold))))
+   `(org-level-5 ((t (:inherit variable-pitch :weight bold))))
+   `(org-level-6 ((t (:inherit variable-pitch :weight bold))))
+   `(org-level-7 ((t (:inherit variable-pitch :weight bold))))
+   `(org-level-8 ((t (:inherit variable-pitch :weight bold))))
+   `(org-document-title ((t (:inherit variable-pitch :weight bold :height 1.3))))))
+
+;; -----------------------------
+;; Org Roam
+;; -----------------------------
+(use-package org-roam
+  :custom
+  (org-roam-directory (file-truename "~/org/roam"))
+  :config
+  (org-roam-db-autosync-mode)
+  (setq org-roam-capture-templates
+        '(("d" "default" plain
+           "%?"
+           :target (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+title: ${title}\n")
+           :unnarrowed t)))
+  ;; Keybindings
+  (global-set-key (kbd "C-c n f") #'org-roam-node-find)
+  (global-set-key (kbd "C-c n i") #'org-roam-node-insert)
+  (global-set-key (kbd "C-c n l") #'org-roam-buffer-toggle)
+  (global-set-key (kbd "C-c n c") #'org-roam-capture))
+
+;; -----------------------------
+;; Org Roam UI
+;; -----------------------------
+(use-package websocket
+  :after org-roam
+  :ensure t)
+
+(use-package org-roam-ui
+  :after org-roam
+  :ensure t
+  :config
+  (setq org-roam-ui-sync-theme t
+        org-roam-ui-follow t
+        org-roam-ui-update-on-save t
+        org-roam-ui-open-on-start t))
+
+;; -----------------------------
+;; AUCTeX
+;; -----------------------------
+(use-package tex
+  :ensure auctex
+  :config
+  (setq TeX-engine 'xetex
+        TeX-view-program-selection '((output-pdf "Skim"))
+        TeX-view-program-list
+        '(("Skim" "/Applications/Skim.app/Contents/SharedSupport/displayline -b -g %n %o %b"))
+        TeX-source-correlate-method 'synctex
+        TeX-source-correlate-mode t
+        TeX-source-correlate-start-server t
+        TeX-auto-save t
+        TeX-parse-self t)
+  
+  ;; Add TeX path for macOS
+  (setenv "PATH" (concat "/Library/TeX/texbin:" (getenv "PATH")))
+  (add-to-list 'exec-path "/Library/TeX/texbin")
+
+  ;; Commands
+  (add-hook 'LaTeX-mode-hook
+            (lambda ()
+              (push '("latexmk" "latexmk -pdf %s" TeX-run-TeX nil t
+                      :help "Run latexmk on file") TeX-command-list)))
+  (add-hook 'TeX-mode-hook (lambda () (setq TeX-command-default "latexmk"))))
+  
+;; -----------------------------
+;; User Info
+;; -----------------------------
+(setq user-full-name "Evan Lee"
+      user-mail-address "evanstephenlee@gmail.com")
+
+;;; init.el ends here
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(package-selected-packages
+   '(auctex-latexmk cape cdlatex company company-go company-ycm corfu
+		    doom-modeline ef-themes evil-collection flycheck
+		    go-mode kaolin-themes ligature lsp-mode lsp-ui
+		    magit olivetti org-appear org-bullets org-roam-ui
+		    vdm-mode)))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(org-document-title ((t (:inherit variable-pitch :weight bold :height 1.3))))
+ '(org-level-1 ((t (:inherit variable-pitch :weight bold :height 1.15))))
+ '(org-level-2 ((t (:inherit variable-pitch :weight bold :height 1.1))))
+ '(org-level-3 ((t (:inherit variable-pitch :weight bold :height 1.05))))
+ '(org-level-4 ((t (:inherit variable-pitch :weight bold))))
+ '(org-level-5 ((t (:inherit variable-pitch :weight bold))))
+ '(org-level-6 ((t (:inherit variable-pitch :weight bold))))
+ '(org-level-7 ((t (:inherit variable-pitch :weight bold))))
+ '(org-level-8 ((t (:inherit variable-pitch :weight bold)))))

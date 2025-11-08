@@ -1,0 +1,23 @@
+;;;; Emacs Bookmark Format Version 1;;;; -*- coding: utf-8-emacs; mode: lisp-data -*-
+;;; This format is meant to be slightly human-readable;
+;;; nevertheless, you probably don't want to edit it.
+;;; -*- End Of Bookmark File Format Version Stamp -*-
+(("org-capture-last-stored-marker"
+ (filename . "~/org/inbox.org")
+ (front-context-string . "** TODO [#B] Set")
+ (rear-context-string . "2025-08-19 Tue>\n")
+ (position . 65)
+ (last-modified 26788 53491 71108 0))
+("org-refile-last-stored"
+ (filename . "~/org/inbox.org")
+ (front-context-string . "** TODO [#B] Set")
+ (rear-context-string . "2025-08-19 Tue>\n")
+ (position . 65)
+ (last-modified 26788 53491 69508 0))
+("org-capture-last-stored"
+ (filename . "~/org/inbox.org")
+ (front-context-string . "** TODO [#B] Rep")
+ (rear-context-string . "0-27 Mon 12:35>\n")
+ (position . 1347)
+ (last-modified 26889 29062 507634 0))
+)
