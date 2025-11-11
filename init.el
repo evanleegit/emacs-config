@@ -1,14 +1,23 @@
-;;; init.el --- Cleaned-up Emacs config for macOS -*- lexical-binding: t; -*-
+;;; init.el --- Cross-platform Emacs config -*- lexical-binding: t; -*-
+
+;; -----------------------------
+;; OS Detection
+;; -----------------------------
+(defconst IS-MAC (eq system-type 'darwin))
+(defconst IS-LINUX (eq system-type 'gnu/linux))
+(defconst IS-WINDOWS (memq system-type '(cygwin windows-nt ms-dos)))
 
 ;; -----------------------------
 ;; General Settings
 ;; -----------------------------
 (setq inhibit-startup-message t) ;; Disable startup screen
 
-(add-to-list 'default-frame-alist '(ns-transparent-titlebar . t))
-(add-to-list 'default-frame-alist '(ns-appearance . dark))
-(setq frame-title-format nil)
-(setq ns-use-proxy-icon nil)
+;; macOS-specific settings
+(when IS-MAC
+  (add-to-list 'default-frame-alist '(ns-transparent-titlebar . t))
+  (add-to-list 'default-frame-alist '(ns-appearance . dark))
+  (setq frame-title-format nil)
+  (setq ns-use-proxy-icon nil))
 
 ;; UI tweaks
 (tool-bar-mode -1)
@@ -203,9 +212,13 @@
   
   :hook (org-mode . evan/org-mode-setup)
   :config
-  ;; Org directories and agenda
-  (setq org-directory (expand-file-name "syncthing/org" (getenv "HOME"))
-        org-agenda-files (list org-directory)
+  ;; OS-aware org directory
+  (setq org-directory 
+        (cond
+         (IS-WINDOWS (expand-file-name "syncthing/org" (getenv "USERPROFILE")))
+         (t (expand-file-name "syncthing/org" (getenv "HOME")))))
+  
+  (setq org-agenda-files (list org-directory)
         org-archive-location (concat (expand-file-name "archives.org" org-directory)
                                      "::datetree/* Archived Tasks"))
  
@@ -217,16 +230,18 @@
   (setq org-startup-with-inline-images t
         org-image-actual-width '(300))
 
-  ;; Capture templates
+  ;; Capture templates - OS-aware paths
   (setq org-capture-templates
-        '(("t" "TODO" entry (file+headline "~/syncthing/org/inbox.org" "Refile")
-           "* TODO [#B] %?\n:Created: %T\n")
-          ("s" "Schedule" entry (file+headline "~/syncthing/org/inbox.org" "Refile")
-           "* TODO [#B] %?\nSCHEDULED: %^t\n")
-          ("d" "Deadline" entry (file+headline "~/syncthing/org/inbox.org" "Refile")
-           "* TODO [#B] %?\nDEADLINE: %^t\n")
-          ("n" "Note" entry (file+headline "~/syncthing/org/notes.org" "Random Notes")
-           "** %?")))
+        (let ((inbox-path (expand-file-name "inbox.org" org-directory))
+              (notes-path (expand-file-name "notes.org" org-directory)))
+          `(("t" "TODO" entry (file+headline ,inbox-path "Refile")
+             "* TODO [#B] %?\n:Created: %T\n")
+            ("s" "Schedule" entry (file+headline ,inbox-path "Refile")
+             "* TODO [#B] %?\nSCHEDULED: %^t\n")
+            ("d" "Deadline" entry (file+headline ,inbox-path "Refile")
+             "* TODO [#B] %?\nDEADLINE: %^t\n")
+            ("n" "Note" entry (file+headline ,notes-path "Random Notes")
+             "** %?"))))
 
   ;; Org keybindings
   (global-set-key (kbd "C-c a") #'org-agenda)
@@ -269,7 +284,11 @@
 ;; -----------------------------
 (use-package org-roam
   :custom
-  (org-roam-directory (file-truename "~/syncthing/org/roam"))
+  (org-roam-directory 
+   (file-truename 
+    (cond
+     (IS-WINDOWS (expand-file-name "syncthing/org/roam" (getenv "USERPROFILE")))
+     (t (expand-file-name "syncthing/org/roam" (getenv "HOME"))))))
   :config
   (org-roam-db-autosync-mode)
   (setq org-roam-capture-templates
@@ -300,24 +319,43 @@
         org-roam-ui-open-on-start t))
 
 ;; -----------------------------
-;; AUCTeX
+;; AUCTeX - OS-aware configuration
 ;; -----------------------------
 (use-package tex
   :ensure auctex
   :config
   (setq TeX-engine 'xetex
-        TeX-view-program-selection '((output-pdf "Skim"))
-        TeX-view-program-list
-        '(("Skim" "/Applications/Skim.app/Contents/SharedSupport/displayline -b -g %n %o %b"))
+        TeX-auto-save t
+        TeX-parse-self t
         TeX-source-correlate-method 'synctex
         TeX-source-correlate-mode t
-        TeX-source-correlate-start-server t
-        TeX-auto-save t
-        TeX-parse-self t)
+        TeX-source-correlate-start-server t)
   
-  ;; Add TeX path for macOS
-  (setenv "PATH" (concat "/Library/TeX/texbin:" (getenv "PATH")))
-  (add-to-list 'exec-path "/Library/TeX/texbin")
+  ;; OS-specific PDF viewer configuration
+  (cond
+   (IS-MAC
+    (setq TeX-view-program-selection '((output-pdf "Skim"))
+          TeX-view-program-list
+          '(("Skim" "/Applications/Skim.app/Contents/SharedSupport/displayline -b -g %n %o %b")))
+    ;; Add TeX path for macOS
+    (setenv "PATH" (concat "/Library/TeX/texbin:" (getenv "PATH")))
+    (add-to-list 'exec-path "/Library/TeX/texbin"))
+   
+   (IS-LINUX
+    (setq TeX-view-program-selection '((output-pdf "PDF Tools"))
+          TeX-view-program-list '(("PDF Tools" TeX-pdf-tools-sync-view)))
+    ;; Optionally install pdf-tools for better PDF viewing on Linux
+    (use-package pdf-tools
+      :ensure t
+      :config
+      (pdf-tools-install)))
+   
+   (IS-WINDOWS
+    (setq TeX-view-program-selection '((output-pdf "Sumatra PDF"))
+          TeX-view-program-list
+          '(("Sumatra PDF" 
+             ("\"C:/Program Files/SumatraPDF/SumatraPDF.exe\" -reuse-instance"
+              (mode-io-correlate " -forward-search \"%b\" %n ") " %o"))))))
 
   ;; Commands
   (add-hook 'LaTeX-mode-hook
@@ -343,7 +381,7 @@
 		    doom-modeline ef-themes evil-collection flycheck
 		    go-mode kaolin-themes ligature lsp-mode lsp-ui
 		    magit olivetti org-appear org-bullets org-roam-ui
-		    vdm-mode)))
+		    pdf-tools vdm-mode)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
