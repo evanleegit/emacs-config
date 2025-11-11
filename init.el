@@ -204,7 +204,7 @@
   :hook (org-mode . evan/org-mode-setup)
   :config
   ;; Org directories and agenda
-  (setq org-directory (expand-file-name "org" (getenv "HOME"))
+  (setq org-directory (expand-file-name "syncthing/org" (getenv "HOME"))
         org-agenda-files (list org-directory)
         org-archive-location (concat (expand-file-name "archives.org" org-directory)
                                      "::datetree/* Archived Tasks"))
@@ -219,13 +219,13 @@
 
   ;; Capture templates
   (setq org-capture-templates
-        '(("t" "TODO" entry (file+headline "~/org/inbox.org" "Refile")
+        '(("t" "TODO" entry (file+headline "~/syncthing/org/inbox.org" "Refile")
            "* TODO [#B] %?\n:Created: %T\n")
-          ("s" "Schedule" entry (file+headline "~/org/inbox.org" "Refile")
+          ("s" "Schedule" entry (file+headline "~/syncthing/org/inbox.org" "Refile")
            "* TODO [#B] %?\nSCHEDULED: %^t\n")
-          ("d" "Deadline" entry (file+headline "~/org/inbox.org" "Refile")
+          ("d" "Deadline" entry (file+headline "~/syncthing/org/inbox.org" "Refile")
            "* TODO [#B] %?\nDEADLINE: %^t\n")
-          ("n" "Note" entry (file+headline "~/org/notes.org" "Random Notes")
+          ("n" "Note" entry (file+headline "~/syncthing/org/notes.org" "Random Notes")
            "** %?")))
 
   ;; Org keybindings
@@ -269,7 +269,7 @@
 ;; -----------------------------
 (use-package org-roam
   :custom
-  (org-roam-directory (file-truename "~/org/roam"))
+  (org-roam-directory (file-truename "~/syncthing/org/roam"))
   :config
   (org-roam-db-autosync-mode)
   (setq org-roam-capture-templates
